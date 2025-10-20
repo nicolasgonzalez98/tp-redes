@@ -1,0 +1,14 @@
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\bin\Debug\net9.0\MiniWebServer.exe
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\bin\Debug\net9.0\MiniWebServer.deps.json
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\bin\Debug\net9.0\MiniWebServer.runtimeconfig.json
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\bin\Debug\net9.0\MiniWebServer.dll
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\bin\Debug\net9.0\MiniWebServer.pdb
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.AssemblyInfoInputs.cache
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.AssemblyInfo.cs
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.dll
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\refint\MiniWebServer.dll
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.pdb
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.genruntimeconfig.cache
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\ref\MiniWebServer.dll
