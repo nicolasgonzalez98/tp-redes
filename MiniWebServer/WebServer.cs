@@ -1,188 +1,107 @@
 using System;
 using System.IO;
-using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
-public class WebServer
+namespace MiniWebServer
 {
-    private readonly int _port;
-    private readonly string _rootDir;
-    private readonly TcpListener _listener;
-
-    public WebServer(int port, string rootDir)
+    public class WebServer
     {
-        _port = port;
-        _rootDir = rootDir;
-        _listener = new TcpListener(IPAddress.Any, _port);
-    }
+        private readonly int _port;
+        private readonly string _root;
 
-    public async Task StartAsync()
-    {
-        _listener.Start();
-        Console.WriteLine($"Servidor iniciado. Puerto: {_port}  Root: {_rootDir}");
-        while (true)
+        public WebServer()
         {
-            // Aceptar conexiones concurrentemente
-            TcpClient client = await _listener.AcceptTcpClientAsync();
-            _ = HandleClientAsync(client); // no await -> concurrente
+            // 1️⃣ Leer archivo de configuración JSON
+            var configText = File.ReadAllText("config.json");
+
+            var config = JsonSerializer.Deserialize<ServerConfig>(configText);
+
+            _port = config.port;
+            _root = config.root;
         }
-    }
 
-    private async Task HandleClientAsync(TcpClient client)
-    {
-        var remoteEnd = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
-        try
+        public async Task StartAsync()
         {
-            using (client)
-            using (var stream = client.GetStream())
+            // 2️⃣ Creamos el socket TCP para escuchar conexiones
+            var listener = new TcpListener(IPAddress.Any, _port);
+            listener.Start();
+
+            Console.WriteLine($"Servidor iniciado en puerto {_port}. Root: {_root}");
+
+            // 3️⃣ Bucle infinito para aceptar clientes concurrentemente
+            while (true)
             {
-                stream.ReadTimeout = 5000;
-                stream.WriteTimeout = 5000;
+                var client = await listener.AcceptTcpClientAsync();
 
-                // Leer petición completa (headers + posible body)
-                var request = await HttpRequest.ParseAsync(stream);
-
-                // Log: IP de origen, método, path y query
-                Logger.LogRequest(remoteEnd, request);
-
-                // Manejo de parámetros (solo logging según consigna)
-                if (request.QueryParameters.Count > 0)
-                {
-                    Logger.Log($"Query params: {string.Join(", ", request.QueryParameters)}");
-                }
-
-                if (request.Method == "POST")
-                {
-                    // Loguear body (según consigna)
-                    Logger.Log($"POST body: {request.BodyAsString}");
-                }
-
-                // Resolver archivo
-                string relativePath = request.Path.TrimStart('/');
-                if (string.IsNullOrEmpty(relativePath) || relativePath.EndsWith("/"))
-                {
-                    relativePath = Path.Combine(relativePath, "index.html");
-                }
-
-                string filePath = Path.Combine(_rootDir, Uri.UnescapeDataString(relativePath.Replace('/', Path.DirectorySeparatorChar)));
-
-                if (Directory.Exists(filePath))
-                {
-                    // si es directorio, servir index.html dentro
-                    filePath = Path.Combine(filePath, "index.html");
-                }
-
-                if (!File.Exists(filePath))
-                {
-                    // 404
-                    string notFoundFile = Path.Combine(_rootDir, "404.html");
-                    if (File.Exists(notFoundFile))
-                    {
-                        await SendFileResponse(stream, notFoundFile, 404, request);
-                    }
-                    else
-                    {
-                        await SendTextResponse(stream, "<h1>404 Not Found</h1>", "text/html; charset=utf-8", 404, request);
-                    }
-                }
-                else
-                {
-                    await SendFileResponse(stream, filePath, 200, request);
-                }
+                // 4️⃣ Cada cliente se maneja en un hilo asíncrono aparte
+                _ = HandleClientAsync(client);
             }
         }
-        catch (Exception ex)
-        {
-            Logger.Log($"Error manejando cliente {remoteEnd}: {ex}");
-        }
-    }
 
-    private async Task SendTextResponse(NetworkStream stream, string content, string contentType, int statusCode, HttpRequest request)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(content);
-        bool compress = ClientAcceptsGzip(request);
-        if (compress)
+        private async Task HandleClientAsync(TcpClient client)
         {
-            using var ms = new MemoryStream();
-            using (var gz = new GZipStream(ms, CompressionMode.Compress, true))
+            using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+            // 5️⃣ Leer la primera línea de la solicitud HTTP (ej: GET /index.html HTTP/1.1)
+            var requestLine = await reader.ReadLineAsync();
+            if (string.IsNullOrEmpty(requestLine)) return;
+
+            Console.WriteLine($"Solicitud recibida: {requestLine}");
+
+            // 6️⃣ Parsear método y recurso
+            var parts = requestLine.Split(' ');
+            var method = parts[0];
+            var url = parts[1];
+
+            // 7️⃣ Si no especifica archivo, servir index.html
+            if (url == "/") url = "/index.html";
+
+            var filePath = Path.Combine(_root, url.TrimStart('/'));
+
+            // 8️⃣ Verificamos si existe el archivo solicitado
+            if (File.Exists(filePath))
             {
-                await gz.WriteAsync(bytes, 0, bytes.Length);
+                var content = await File.ReadAllTextAsync(filePath);
+                await SendResponseAsync(writer, "200 OK", GetContentType(filePath), content);
             }
-            var comp = ms.ToArray();
-            var header = BuildHeader(statusCode, contentType, comp.Length, "gzip");
-            await stream.WriteAsync(header, 0, header.Length);
-            await stream.WriteAsync(comp, 0, comp.Length);
-        }
-        else
-        {
-            var header = BuildHeader(statusCode, contentType, bytes.Length, null);
-            await stream.WriteAsync(header, 0, header.Length);
-            await stream.WriteAsync(bytes, 0, bytes.Length);
-        }
-    }
-
-    private async Task SendFileResponse(NetworkStream stream, string filePath, int statusCode, HttpRequest request)
-    {
-        string contentType = MimeTypes.GetMimeType(Path.GetExtension(filePath));
-        byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
-        bool compress = ClientAcceptsGzip(request) && ShouldCompress(contentType);
-
-        if (compress)
-        {
-            using var ms = new MemoryStream();
-            using (var gz = new GZipStream(ms, CompressionMode.Compress, true))
+            else
             {
-                await gz.WriteAsync(fileBytes, 0, fileBytes.Length);
+                await SendResponseAsync(writer, "404 Not Found", "text/html", "<h1>404 - Archivo no encontrado</h1>");
             }
-            var comp = ms.ToArray();
-            var header = BuildHeader(statusCode, contentType, comp.Length, "gzip");
-            await stream.WriteAsync(header, 0, header.Length);
-            await stream.WriteAsync(comp, 0, comp.Length);
         }
-        else
+
+        private async Task SendResponseAsync(StreamWriter writer, string status, string contentType, string content)
         {
-            var header = BuildHeader(statusCode, contentType, fileBytes.Length, null);
-            await stream.WriteAsync(header, 0, header.Length);
-            await stream.WriteAsync(fileBytes, 0, fileBytes.Length);
+            await writer.WriteLineAsync($"HTTP/1.1 {status}");
+            await writer.WriteLineAsync($"Content-Type: {contentType}");
+            await writer.WriteLineAsync($"Content-Length: {Encoding.UTF8.GetByteCount(content)}");
+            await writer.WriteLineAsync("Connection: close");
+            await writer.WriteLineAsync();
+            await writer.WriteAsync(content);
         }
-    }
 
-    private static byte[] BuildHeader(int statusCode, string contentType, long contentLength, string contentEncoding)
-    {
-        string reason = statusCode == 200 ? "OK" : statusCode == 404 ? "Not Found" : "OK";
-        var sb = new StringBuilder();
-        sb.Append($"HTTP/1.1 {statusCode} {reason}\r\n");
-        sb.Append($"Date: {DateTime.UtcNow:R}\r\n");
-        sb.Append($"Server: MiniWebServer/1.0\r\n");
-        sb.Append($"Content-Type: {contentType}\r\n");
-        sb.Append($"Content-Length: {contentLength}\r\n");
-        if (!string.IsNullOrEmpty(contentEncoding))
-            sb.Append($"Content-Encoding: {contentEncoding}\r\n");
-        sb.Append($"Connection: close\r\n");
-        sb.Append($"\r\n");
-        return Encoding.UTF8.GetBytes(sb.ToString());
-    }
-
-    private static bool ClientAcceptsGzip(HttpRequest request)
-    {
-        if (request.Headers.TryGetValue("Accept-Encoding", out var val))
+        private string GetContentType(string path)
         {
-            return val.Contains("gzip");
+            return Path.GetExtension(path) switch
+            {
+                ".html" => "text/html",
+                ".css" => "text/css",
+                ".js" => "application/javascript",
+                ".png" => "image/png",
+                _ => "text/plain"
+            };
         }
-        return false;
-    }
 
-    private static bool ShouldCompress(string mime)
-    {
-        // No tiene sentido comprimir imágenes o ya comprimidos
-        var notCompress = new[] { ".png", ".jpg", ".jpeg", ".gif", ".zip", ".gz", ".rar", ".mp4" };
-        foreach (var ext in notCompress)
-            if (mime.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return false;
-
-        // comprimimos html, css, js, txt, json, xml, etc.
-        return true;
+        private class ServerConfig
+        {
+            public int port { get; set; }
+            public string root { get; set; }
+        }
     }
 }

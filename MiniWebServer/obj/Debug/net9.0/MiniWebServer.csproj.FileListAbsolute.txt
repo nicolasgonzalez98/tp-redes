@@ -7,6 +7,7 @@ C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWe
 C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.AssemblyInfoInputs.cache
 C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.AssemblyInfo.cs
 C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.sourcelink.json
 C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.dll
 C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\refint\MiniWebServer.dll
 C:\Users\Admin\Desktop\Proyecto final - Programacion Redes\Proyecto final\MiniWebServer\obj\Debug\net9.0\MiniWebServer.pdb
