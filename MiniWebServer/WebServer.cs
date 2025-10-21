@@ -71,8 +71,20 @@ namespace MiniWebServer
                 await SendResponseAsync(writer, "200 OK", GetContentType(filePath), content);
             }
             else
+            //Punto 5, creacion de archivo 404.html
             {
-                await SendResponseAsync(writer, "404 Not Found", "text/html", "<h1>404 - Archivo no encontrado</h1>");
+                string notFoundPath = Path.Combine(_root, "404.html");
+                string notFoundContent = File.Exists(notFoundPath)
+                    ? File.ReadAllText(notFoundPath)
+                    : "<h1>404 Not Found</h1>";
+
+                string header = "HTTP/1.1 404 Not Found\r\n" +
+                                "Content-Type: text/html; charset=UTF-8\r\n" +
+                                $"Content-Length: {Encoding.UTF8.GetByteCount(notFoundContent)}\r\n" +
+                                "\r\n";
+
+                await stream.WriteAsync(Encoding.UTF8.GetBytes(header + notFoundContent));
+                return;
             }
         }
 
