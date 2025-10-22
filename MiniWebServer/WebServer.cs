@@ -59,32 +59,70 @@ namespace MiniWebServer
             var method = parts[0];
             var url = parts[1];
 
-            // 7️⃣ Si no especifica archivo, servir index.html
-            if (url == "/") url = "/index.html";
-
-            var filePath = Path.Combine(_root, url.TrimStart('/'));
-
-            // 8️⃣ Verificamos si existe el archivo solicitado
-            if (File.Exists(filePath))
+                // Manejar solicitud POST
+            if (method.Equals("POST", StringComparison.OrdinalIgnoreCase))
             {
-                var content = await File.ReadAllTextAsync(filePath);
-                await SendResponseAsync(writer, "200 OK", GetContentType(filePath), content);
+                // Leer los headers hasta encontrar una línea en blanco
+                string line;
+                int contentLength = 0;
+                while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
+                {
+                    if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        contentLength = int.Parse(line.Split(':')[1].Trim());
+                    }
+                }
+
+                // Leer el cuerpo del POST
+                if (contentLength > 0)
+                {
+                    var buffer = new char[contentLength];
+                    await reader.ReadBlockAsync(buffer, 0, contentLength);
+                    var postData = new string(buffer);
+                    
+                    // Loguear los datos POST
+                    Console.WriteLine($"Datos POST recibidos: {postData}");
+                    
+                    // Enviar una respuesta simple
+                    await SendResponseAsync(writer, "200 OK", "text/plain", "POST recibido correctamente");
+                    return;
+                }
+            }
+
+            if (method.Equals("GET", StringComparison.OrdinalIgnoreCase))
+            {
+                // 7️⃣ Si no especifica archivo, servir index.html
+                if (url == "/") url = "/index.html";
+
+                var filePath = Path.Combine(_root, url.TrimStart('/'));
+
+                // 8️⃣ Verificamos si existe el archivo solicitado
+                if (File.Exists(filePath))
+                {
+                    var content = await File.ReadAllTextAsync(filePath);
+                    await SendResponseAsync(writer, "200 OK", GetContentType(filePath), content);
+                }
+                else
+                //Punto 5, creacion de archivo 404.html
+                {
+                    string notFoundPath = Path.Combine(_root, "404.html");
+                    string notFoundContent = File.Exists(notFoundPath)
+                        ? File.ReadAllText(notFoundPath)
+                        : "<h1>404 Not Found</h1>";
+
+                    string header = "HTTP/1.1 404 Not Found\r\n" +
+                                    "Content-Type: text/html; charset=UTF-8\r\n" +
+                                    $"Content-Length: {Encoding.UTF8.GetByteCount(notFoundContent)}\r\n" +
+                                    "\r\n";
+
+                    await stream.WriteAsync(Encoding.UTF8.GetBytes(header + notFoundContent));
+                    return;
+                }
             }
             else
-            //Punto 5, creacion de archivo 404.html
             {
-                string notFoundPath = Path.Combine(_root, "404.html");
-                string notFoundContent = File.Exists(notFoundPath)
-                    ? File.ReadAllText(notFoundPath)
-                    : "<h1>404 Not Found</h1>";
-
-                string header = "HTTP/1.1 404 Not Found\r\n" +
-                                "Content-Type: text/html; charset=UTF-8\r\n" +
-                                $"Content-Length: {Encoding.UTF8.GetByteCount(notFoundContent)}\r\n" +
-                                "\r\n";
-
-                await stream.WriteAsync(Encoding.UTF8.GetBytes(header + notFoundContent));
-                return;
+                // Método no soportado
+                await SendResponseAsync(writer, "405 Method Not Allowed", "text/plain", "Método no soportado");
             }
         }
 
