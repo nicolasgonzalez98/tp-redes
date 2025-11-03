@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.IO.Compression; 
 
 namespace MiniWebServer
 {
@@ -59,51 +60,102 @@ namespace MiniWebServer
             var method = parts[0];
             var url = parts[1];
 
-                // Manejar solicitud POST
+            bool acceptGzip = false;
+            string line;
+            int contentLength = 0;
+
+            // 🧩 Leemos headers comunes para GET y POST
+            while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
+            {
+                Console.WriteLine($"Header recibido: {line}");
+
+                if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (int.TryParse(line.Split(':')[1].Trim(), out int len))
+                        contentLength = len;
+                }
+                else if (line.StartsWith("Accept-Encoding:", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (line.Contains("gzip", StringComparison.OrdinalIgnoreCase))
+                        acceptGzip = true;
+                }
+            }
+            Console.WriteLine("👉 Fin de headers detectado");
+            
+
+            // ---------- POST ----------
             if (method.Equals("POST", StringComparison.OrdinalIgnoreCase))
             {
-                // Leer los headers hasta encontrar una línea en blanco
-                string line;
-                int contentLength = 0;
-                while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
-                {
-                    if (line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
-                    {
-                        contentLength = int.Parse(line.Split(':')[1].Trim());
-                    }
-                }
-
-                // Leer el cuerpo del POST
                 if (contentLength > 0)
                 {
                     var buffer = new char[contentLength];
                     await reader.ReadBlockAsync(buffer, 0, contentLength);
                     var postData = new string(buffer);
-                    
-                    // Loguear los datos POST
+
                     Console.WriteLine($"Datos POST recibidos: {postData}");
-                    
-                    // Enviar una respuesta simple
                     await SendResponseAsync(writer, "200 OK", "text/plain", "POST recibido correctamente");
                     return;
+                }
+                else
+                {
+                    Console.WriteLine("[POST] Sin cuerpo recibido");
                 }
             }
 
             if (method.Equals("GET", StringComparison.OrdinalIgnoreCase))
             {
-                // 7️⃣ Si no especifica archivo, servir index.html
                 if (url == "/") url = "/index.html";
 
-                var filePath = Path.Combine(_root, url.TrimStart('/'));
+                var urlParts = url.Split('?', 2);
+                var path = urlParts[0];
+                var query = urlParts.Length > 1 ? urlParts[1] : string.Empty;
 
-                // 8️⃣ Verificamos si existe el archivo solicitado
+                if (!string.IsNullOrEmpty(query))
+                {
+                    var parameters = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+                    Console.WriteLine("📘 Parámetros recibidos en la URL:");
+                    foreach (var param in parameters)
+                    {
+                        var kv = param.Split('=', 2);
+                        var key = WebUtility.UrlDecode(kv[0]);
+                        var value = kv.Length > 1 ? WebUtility.UrlDecode(kv[1]) : "";
+                        Console.WriteLine($"  → {key}: {value}");
+                    }
+                }
+
+                var filePath = Path.Combine(_root, path.TrimStart('/'));
+
                 if (File.Exists(filePath))
                 {
-                    var content = await File.ReadAllTextAsync(filePath);
-                    await SendResponseAsync(writer, "200 OK", GetContentType(filePath), content);
+                    // 🧩 Si el cliente acepta gzip, comprimimos
+                    byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
+
+                    if (acceptGzip)
+                    {
+                        using var compressedStream = new MemoryStream();
+                        using (var gzip = new GZipStream(compressedStream, CompressionMode.Compress, true))
+                        {
+                            await gzip.WriteAsync(fileBytes, 0, fileBytes.Length);
+                        }
+
+                        byte[] compressedData = compressedStream.ToArray();
+
+                        await writer.WriteLineAsync("HTTP/1.1 200 OK");
+                        await writer.WriteLineAsync($"Content-Type: {GetContentType(filePath)}");
+                        await writer.WriteLineAsync("Content-Encoding: gzip"); // 🧩 importante
+                        await writer.WriteLineAsync($"Content-Length: {compressedData.Length}");
+                        await writer.WriteLineAsync("Connection: close");
+                        await writer.WriteLineAsync();
+                        await stream.WriteAsync(compressedData, 0, compressedData.Length);
+                    }
+                    else
+                    {
+                        // Si no acepta gzip, envío normal
+                        var content = Encoding.UTF8.GetString(fileBytes);
+                        await SendResponseAsync(writer, "200 OK", GetContentType(filePath), content);
+                    }
                 }
                 else
-                //Punto 5, creacion de archivo 404.html
                 {
                     string notFoundPath = Path.Combine(_root, "404.html");
                     string notFoundContent = File.Exists(notFoundPath)
@@ -121,7 +173,6 @@ namespace MiniWebServer
             }
             else
             {
-                // Método no soportado
                 await SendResponseAsync(writer, "405 Method Not Allowed", "text/plain", "Método no soportado");
             }
         }
