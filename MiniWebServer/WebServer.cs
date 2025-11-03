@@ -28,6 +28,7 @@ namespace MiniWebServer
         public async Task StartAsync()
         {
             // 2️⃣ Creamos el socket TCP para escuchar conexiones
+            //Punto 10
             var listener = new TcpListener(IPAddress.Any, _port);
             listener.Start();
 
@@ -36,6 +37,7 @@ namespace MiniWebServer
             // 3️⃣ Bucle infinito para aceptar clientes concurrentemente
             while (true)
             {
+                //Punto 10
                 var client = await listener.AcceptTcpClientAsync();
 
                 // 4️⃣ Cada cliente se maneja en un hilo asíncrono aparte
@@ -45,13 +47,15 @@ namespace MiniWebServer
 
         private async Task HandleClientAsync(TcpClient client)
         {
+            //Punto 10
             using var stream = client.GetStream();
             using var reader = new StreamReader(stream, Encoding.UTF8);
             using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
 
-            // 5️⃣ Leer la primera línea de la solicitud HTTP (ej: GET /index.html HTTP/1.1)
-            var requestLine = await reader.ReadLineAsync();
-            if (string.IsNullOrEmpty(requestLine)) return;
+            // 5️⃣ Leer la primera línea de la solicitud HTTP 
+            //Punto 10
+            var requestLine = await reader.ReadLineAsync(); //Ej: "GET /index.html HTTP/1.1"
+            if (string.IsNullOrEmpty(requestLine)) return; 
 
             Console.WriteLine($"Solicitud recibida: {requestLine}");
 
@@ -59,6 +63,11 @@ namespace MiniWebServer
             var parts = requestLine.Split(' ');
             var method = parts[0];
             var url = parts[1];
+
+            //Punto 9
+            var clientIp = ((IPEndPoint)client.Client.RemoteEndPoint!).Address.ToString();
+            await LogRequestAsync(clientIp, method, url);
+            //*******//
 
             bool acceptGzip = false;
             string line;
@@ -79,6 +88,7 @@ namespace MiniWebServer
                     if (line.Contains("gzip", StringComparison.OrdinalIgnoreCase))
                         acceptGzip = true;
                 }
+                
             }
             Console.WriteLine("👉 Fin de headers detectado");
             
@@ -93,6 +103,9 @@ namespace MiniWebServer
                     var postData = new string(buffer);
 
                     Console.WriteLine($"Datos POST recibidos: {postData}");
+                    //Punto 9
+                    await LogRequestAsync(clientIp, method, url, postData);
+                    //********//
                     await SendResponseAsync(writer, "200 OK", "text/plain", "POST recibido correctamente");
                     return;
                 }
@@ -121,6 +134,8 @@ namespace MiniWebServer
                         var value = kv.Length > 1 ? WebUtility.UrlDecode(kv[1]) : "";
                         Console.WriteLine($"  → {key}: {value}");
                     }
+                    //Punto 9
+                    await LogRequestAsync(clientIp, method, url, query);
                 }
 
                 var filePath = Path.Combine(_root, path.TrimStart('/'));
@@ -197,6 +212,23 @@ namespace MiniWebServer
                 ".png" => "image/png",
                 _ => "text/plain"
             };
+        }
+
+        //Punto 9
+        private async Task LogRequestAsync(string clientIp, string method, string url, string? extraData = null)
+        {
+            string logsDir = "logs";
+            Directory.CreateDirectory(logsDir); // Crea la carpeta si no existe
+
+            string filePath = Path.Combine(logsDir, $"{DateTime.Now:yyyy-MM-dd}.log");
+            string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {clientIp} {method} {url}";
+
+            if (!string.IsNullOrEmpty(extraData))
+                logEntry += $" -> {extraData}";
+
+            logEntry += Environment.NewLine;
+
+            await File.AppendAllTextAsync(filePath, logEntry);
         }
 
         private class ServerConfig

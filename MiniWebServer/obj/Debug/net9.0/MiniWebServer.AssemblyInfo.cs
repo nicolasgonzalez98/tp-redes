@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MiniWebServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+19ae49eb02040b318901e9bd91c0e76414cb3c94")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0cdb5c8deb1c42140e7f136e2b74c7325db1b51c")]
 [assembly: System.Reflection.AssemblyProductAttribute("MiniWebServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MiniWebServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
