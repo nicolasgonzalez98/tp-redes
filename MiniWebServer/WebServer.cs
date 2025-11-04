@@ -16,9 +16,8 @@ namespace MiniWebServer
 
         public WebServer()
         {
-            // 1️⃣ Leer archivo de configuración JSON
+            //PUNTO 3 y 4
             var configText = File.ReadAllText("config.json");
-
             var config = JsonSerializer.Deserialize<ServerConfig>(configText);
 
             _port = config.port;
@@ -27,20 +26,20 @@ namespace MiniWebServer
 
         public async Task StartAsync()
         {
-            // 2️⃣ Creamos el socket TCP para escuchar conexiones
+            //socket TCP para escuchar conexiones
             //Punto 10
             var listener = new TcpListener(IPAddress.Any, _port);
             listener.Start();
 
-            Console.WriteLine($"Servidor iniciado en puerto {_port}. Root: {_root}");
+            Console.WriteLine($"Servidor iniciado en puerto {_port}.");
 
-            // 3️⃣ Bucle infinito para aceptar clientes concurrentemente
+            //PUNTO 1 Bucle infinito para aceptar clientes concurrentemente
             while (true)
             {
                 //Punto 10
                 var client = await listener.AcceptTcpClientAsync();
 
-                // 4️⃣ Cada cliente se maneja en un hilo asíncrono aparte
+                //Cada cliente se maneja en un hilo asíncrono aparte
                 _ = HandleClientAsync(client);
             }
         }
@@ -52,28 +51,29 @@ namespace MiniWebServer
             using var reader = new StreamReader(stream, Encoding.UTF8);
             using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
 
-            // 5️⃣ Leer la primera línea de la solicitud HTTP 
+            //Leer la primera línea de la solicitud HTTP 
             //Punto 10
             var requestLine = await reader.ReadLineAsync(); //Ej: "GET /index.html HTTP/1.1"
             if (string.IsNullOrEmpty(requestLine)) return; 
 
             Console.WriteLine($"Solicitud recibida: {requestLine}");
 
-            // 6️⃣ Parsear método y recurso
+            //Parsear método y recurso
             var parts = requestLine.Split(' ');
             var method = parts[0];
             var url = parts[1];
 
             //Punto 9
-            var clientIp = ((IPEndPoint)client.Client.RemoteEndPoint!).Address.ToString();
-            await LogRequestAsync(clientIp, method, url);
+            var remote = client.Client.RemoteEndPoint as IPEndPoint;
+            var clientIp = remote?.Address.ToString() ?? "unknown";
             //*******//
 
+            //PUNTO 8
             bool acceptGzip = false;
             string line;
             int contentLength = 0;
 
-            // 🧩 Leemos headers comunes para GET y POST
+            //Leemos headers GET y POST (PUNTO 6)
             while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync()))
             {
                 Console.WriteLine($"Header recibido: {line}");
@@ -90,10 +90,10 @@ namespace MiniWebServer
                 }
                 
             }
-            Console.WriteLine("👉 Fin de headers detectado");
-            
+            Console.WriteLine("Fin de headers detectado");
 
-            // ---------- POST ----------
+
+            // ---------- POST ---------- (PUNTO 6)
             if (method.Equals("POST", StringComparison.OrdinalIgnoreCase))
             {
                 if (contentLength > 0)
@@ -115,10 +115,13 @@ namespace MiniWebServer
                 }
             }
 
+            // ---------- GET ---------- (PUNTO 6)
             if (method.Equals("GET", StringComparison.OrdinalIgnoreCase))
             {
+                //PUNTO 2
                 if (url == "/") url = "/index.html";
 
+                //Separar path y query string (PUNTO 7)
                 var urlParts = url.Split('?', 2);
                 var path = urlParts[0];
                 var query = urlParts.Length > 1 ? urlParts[1] : string.Empty;
@@ -126,7 +129,7 @@ namespace MiniWebServer
                 if (!string.IsNullOrEmpty(query))
                 {
                     var parameters = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
-                    Console.WriteLine("📘 Parámetros recibidos en la URL:");
+                    Console.WriteLine("Parámetros recibidos en la URL:");
                     foreach (var param in parameters)
                     {
                         var kv = param.Split('=', 2);
@@ -142,7 +145,7 @@ namespace MiniWebServer
 
                 if (File.Exists(filePath))
                 {
-                    // 🧩 Si el cliente acepta gzip, comprimimos
+                    //Si el cliente acepta gzip, comprimimos (PUNTO 8)
                     byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
 
                     if (acceptGzip)
@@ -157,7 +160,7 @@ namespace MiniWebServer
 
                         await writer.WriteLineAsync("HTTP/1.1 200 OK");
                         await writer.WriteLineAsync($"Content-Type: {GetContentType(filePath)}");
-                        await writer.WriteLineAsync("Content-Encoding: gzip"); // 🧩 importante
+                        await writer.WriteLineAsync("Content-Encoding: gzip");
                         await writer.WriteLineAsync($"Content-Length: {compressedData.Length}");
                         await writer.WriteLineAsync("Connection: close");
                         await writer.WriteLineAsync();
@@ -172,6 +175,7 @@ namespace MiniWebServer
                 }
                 else
                 {
+                    //PUNTO 5 - 404
                     string notFoundPath = Path.Combine(_root, "404.html");
                     string notFoundContent = File.Exists(notFoundPath)
                         ? File.ReadAllText(notFoundPath)
