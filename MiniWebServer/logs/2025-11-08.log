@@ -1,0 +1,19 @@
+[2025-11-08 01:57:25] 127.0.0.1 GET /
+[2025-11-08 01:59:41] 127.0.0.1 GET /index.html
+[2025-11-08 02:10:21] 127.0.0.1 POST / -> nombre=Juan&edad=25
+[2025-11-08 02:47:06] 127.0.0.1 POST / -> nombre=Juan&edad=25
+[2025-11-08 02:55:43] 127.0.0.1 GET /index.html?user=test&modo=debug
+[2025-11-08 02:55:43] 127.0.0.1 GET /index.html?user=test&modo=debug -> user=test&modo=debug
+[2025-11-08 03:05:28] 127.0.0.1 GET /index.html
+[2025-11-08 03:28:54] 127.0.0.1 GET /
+[2025-11-08 04:14:33] 127.0.0.1 GET /index.html -> [Accept-Encoding: gzip]
+[2025-11-08 04:14:33] 127.0.0.1 GET /index.html -> [Accept-Encoding: gzip]
+[2025-11-08 04:18:05] 127.0.0.1 GET /index.html -> [Accept-Encoding: gzip]
+[2025-11-08 04:18:05] 127.0.0.1 GET /index.html -> [Accept-Encoding: gzip]
+[2025-11-08 04:29:03] 127.0.0.1 GET /index.html -> [Accept-Encoding: gzip]
+[2025-11-08 04:29:03] 127.0.0.1 GET /index.html -> [Accept-Encoding: gzip]
+[2025-11-08 04:32:38] 127.0.0.1 GET /index.html -> [Accept-Encoding: gzip]
+[2025-11-08 04:33:02] 127.0.0.1 GET /api/test
+[2025-11-08 04:34:00] 127.0.0.1 POST /api/test -> {\
+[2025-11-08 04:37:40] 127.0.0.1 POST /api/test -> {\
+[2025-11-08 04:40:53] 127.0.0.1 POST /api/test -> {"mensaje": "hola servidor"}
